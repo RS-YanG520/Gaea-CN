@@ -1,0 +1,17 @@
+# local / generated
+backups/verify_tmp/
+logs/
+logs/*.log
+logs/*.log.*
+config/launcher.json
+__pycache__/
+*.pyc
+.DS_Store
+
+# .NET build junk (keep hooks/publish2 for the launcher)
+**/bin/
+**/obj/
+hooks/publish/
+hooks/publish3/
+*.user
+*.suo

@@ -1,0 +1,32 @@
+{
+    "version":  1,
+    "policy":  "Display-only UI strings. zh empty until translated. Do not binary-patch DLL.",
+    "source":  "D:\\Program Files\\Gaea 2\\Gaea.dll",
+    "count":  24,
+    "strings":  {
+                    "Assembly Version":  "",
+                    "babel e1 {0}: {1}":  "",
+                    "babel e2":  "",
+                    "babel e3 {0}: {1}":  "",
+                    "babel e4: invalid code {0} password {1}":  "",
+                    "babel e4: no code source {0} stream":  "",
+                    "babel e5":  "",
+                    "babel e7":  "",
+                    "babel e8 {0}":  "",
+                    "babel e9 {0}":  "",
+                    "Clear all cache":  "",
+                    "Clear Viewport Cache":  "",
+                    "Compact Memory":  "",
+                    "Copyright (C) 2016-2025":  "",
+                    "Current Settings (No Profile)":  "",
+                    "File may be corrupt":  "",
+                    "Gaea Graph Fragment (*.tfrag)|*.tfrag":  "",
+                    "Memory Cleanup":  "",
+                    "Not supported encryption code {0}":  "",
+                    "Please wait, this may take some time...":  "",
+                    "Save changes":  "",
+                    "See more":  "",
+                    "Select how you would like to clean up Gaea\u0027s memory usage. The current usage can be seen below.":  "",
+                    "There are unsaved changes. Would you like to save the file before proceeding?":  ""
+                }
+}

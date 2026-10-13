@@ -23,6 +23,31 @@ python tools/launcher.py
 
 若写入 `Program Files` 失败，请右键「以管理员身份运行」批处理。
 
+## 安装成「官方快捷方式即中文」（类似星空汉化）
+
+词典已合并 `dict/xingkong/`（星空汉化社区词条，显示层专用）。不想每次开 bat 时，可把启动器装进 Gaea 目录：
+
+```powershell
+# 管理员 PowerShell
+cd D:\Projects\Gaea-CN
+powershell -ExecutionPolicy Bypass -File tools\install_gaea_cn.ps1
+```
+
+效果：备份 `Gaea.exe` → `Gaea.real.exe`，放入我们的启动器；之后双击原快捷方式即可。
+
+卸载还原：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\install_gaea_cn.ps1 -Uninstall
+```
+
+只更新词典（不重装启动器）：
+
+```powershell
+python tools\import_xingkong_dict.py
+# 再运行一次 install 脚本，或手动复制 dict 到 %LOCALAPPDATA%\Gaea-CN
+```
+
 ## 命令行流程
 
 ```powershell

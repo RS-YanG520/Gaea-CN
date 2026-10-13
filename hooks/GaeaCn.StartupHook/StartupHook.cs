@@ -41,7 +41,10 @@ internal static class SafeUiTranslator
     /// Translating these blanks the glyph (e.g. Sun → 太阳).
     /// Longer phrases like "Sun Azimuth" remain translatable.
     /// </summary>
-    private static readonly HashSet<string> IconGlyphKeys = new(StringComparer.OrdinalIgnoreCase)
+    // Case-sensitive: lowercase tokens from 星空 00_PROTECTED are icon resource keys;
+    // Title Case "Sun"/"Histogram" may be real UI labels and should still translate.
+    // Keep a few Title Case toolbar glyph keys that Gaea uses as icon TextBlocks.
+    private static readonly HashSet<string> IconGlyphKeys = new(StringComparer.Ordinal)
     {
         "Sun", "Light", "Dark", "Grid", "Camera", "Sphere", "Water", "Sky", "Moon",
         "Engine", "World", "Earth", "View", "Viewport", "Render", "Clay", "Mask",
@@ -63,29 +66,107 @@ internal static class SafeUiTranslator
         try
         {
             var asmDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
-            foreach (var path in new[]
+            var local = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Gaea-CN");
+            var repoDict = Path.GetFullPath(Path.Combine(asmDir, "..", "..", "dict"));
+
+            // Merge every available source (JSON + 星空-style txt folders)
+            foreach (var jsonPath in new[]
                      {
                          Path.Combine(asmDir, "ui.display.zh.json"),
-                         Path.GetFullPath(Path.Combine(asmDir, "..", "..", "dict", "ui.display.zh.json")),
-                         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                             "Gaea-CN", "ui.display.zh.json"),
+                         Path.Combine(local, "ui.display.zh.json"),
+                         Path.Combine(repoDict, "ui.display.zh.json"),
                      })
-            {
-                if (!File.Exists(path)) continue;
-                using var doc = JsonDocument.Parse(File.ReadAllText(path));
-                foreach (var p in doc.RootElement.EnumerateObject())
-                {
-                    if (p.Value.ValueKind != JsonValueKind.String) continue;
-                    var zh = p.Value.GetString();
-                    if (string.IsNullOrWhiteSpace(zh)) continue;
-                    RegisterKey(p.Name, zh!);
-                }
-                Log($"Loaded {Map.Count} map entries from {path}");
-                return;
-            }
-            Log("Dictionary not found");
+                LoadJsonMap(jsonPath);
+
+            foreach (var dir in new[]
+                     {
+                         Path.Combine(asmDir, "zh-dict"),
+                         Path.Combine(local, "zh-dict"),
+                         Path.Combine(repoDict, "xingkong"),
+                     })
+                LoadTxtDictFolder(dir);
+
+            foreach (var prot in new[]
+                     {
+                         Path.Combine(asmDir, "ui.protected.json"),
+                         Path.Combine(local, "ui.protected.json"),
+                         Path.Combine(repoDict, "ui.protected.json"),
+                     })
+                LoadProtectedKeys(prot);
+
+            Log($"Dictionary ready: map={Map.Count} iconKeys={IconGlyphKeys.Count}");
+            if (Map.Count == 0) Log("Dictionary not found");
         }
         catch (Exception ex) { Log("LoadDictionary: " + ex.Message); }
+    }
+
+    private static void LoadJsonMap(string path)
+    {
+        if (!File.Exists(path)) return;
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            var n = 0;
+            foreach (var p in doc.RootElement.EnumerateObject())
+            {
+                if (p.Value.ValueKind != JsonValueKind.String) continue;
+                var zh = p.Value.GetString();
+                if (string.IsNullOrWhiteSpace(zh)) continue;
+                RegisterKey(p.Name, zh!);
+                n++;
+            }
+            Log($"Loaded json entries≈{n} from {path}");
+        }
+        catch (Exception ex) { Log($"LoadJsonMap {path}: {ex.Message}"); }
+    }
+
+    private static void LoadTxtDictFolder(string dir)
+    {
+        if (!Directory.Exists(dir)) return;
+        var n = 0;
+        foreach (var file in Directory.EnumerateFiles(dir, "*.txt"))
+        {
+            try
+            {
+                foreach (var raw in File.ReadLines(file))
+                {
+                    var line = raw.Trim();
+                    if (line.Length == 0 || line[0] == '#') continue;
+                    var eq = line.IndexOf('=');
+                    if (eq <= 0) continue;
+                    var en = line[..eq].Trim();
+                    var zh = line[(eq + 1)..].Trim();
+                    if (en.Length == 0 || zh.Length == 0) continue;
+                    RegisterKey(en, zh);
+                    if (en.Contains('_', StringComparison.Ordinal))
+                    {
+                        var bare = en.Replace("_", "", StringComparison.Ordinal);
+                        if (bare.Length > 0) RegisterKey(bare, zh);
+                    }
+                    n++;
+                }
+            }
+            catch (Exception ex) { Log($"LoadTxt {file}: {ex.Message}"); }
+        }
+        if (n > 0) Log($"Loaded txt entries≈{n} from {dir}");
+    }
+
+    private static void LoadProtectedKeys(string path)
+    {
+        if (!File.Exists(path)) return;
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            if (!doc.RootElement.TryGetProperty("iconGlyphKeys", out var arr)) return;
+            foreach (var el in arr.EnumerateArray())
+            {
+                var s = el.GetString();
+                if (!string.IsNullOrWhiteSpace(s))
+                    IconGlyphKeys.Add(s!);
+            }
+            Log($"Loaded protected keys from {path}");
+        }
+        catch (Exception ex) { Log($"LoadProtectedKeys {path}: {ex.Message}"); }
     }
 
     private static async Task WaitAndInstall()
@@ -633,6 +714,28 @@ internal static class SafeUiTranslator
                 return true;
             }
         }
+
+        // "Build time: 491 milliseconds" / multi-line with "Status: Built"
+        var buildTime = System.Text.RegularExpressions.Regex.Match(
+            text, @"Build\s+time:\s*(\d+)\s*milliseconds",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (buildTime.Success)
+        {
+            zh = "构建耗时：" + buildTime.Groups[1].Value + " 毫秒";
+            if (System.Text.RegularExpressions.Regex.IsMatch(
+                    text, @"Status:\s*Built",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                zh += "\n状态：已构建";
+            return true;
+        }
+        if (System.Text.RegularExpressions.Regex.IsMatch(
+                compact, @"^Status:\s*Built$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+        {
+            zh = "状态：已构建";
+            return true;
+        }
+
         return false;
     }
 

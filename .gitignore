@@ -15,3 +15,6 @@ hooks/publish/
 hooks/publish3/
 *.user
 *.suo
+
+# official binary stub used only for extract checks
+学习参考/**/Gaea.dll
